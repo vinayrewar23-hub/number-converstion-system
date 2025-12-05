@@ -1,74 +1,76 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
-#include "../include/converter.h"
 
-// Implements the Repeated Division algorithm (Decimal to any base)
+//------------------------------------------------------
+// Convert Decimal → Any Base (2, 8, 16)
+//------------------------------------------------------
 void decimal_to_base(long long decimal_num, int base, char result[]) {
     if (decimal_num == 0) {
         strcpy(result, "0");
         return;
     }
 
-    int i = 0;
-    long long temp_num = decimal_num;
+    int index = 0;
+    long long temp = decimal_num;
 
-    while (temp_num > 0) {
-        long long remainder = temp_num % base;
-        char digit;
+    while (temp > 0) {
+        int rem = temp % base;
 
-        if (remainder < 10) {
-            digit = remainder + '0';
-        } else {
-            digit = remainder - 10 + 'A';
-        }
+        if (rem < 10)
+            result[index++] = rem + '0';
+        else
+            result[index++] = (rem - 10) + 'A';
 
-        result[i++] = digit;
-        temp_num /= base;
+        temp /= base;
     }
-    result[i] = '\0';
 
-    int len = strlen(result);
-    for (int j = 0; j < len / 2; j++) {
-        char temp = result[j];
-        result[j] = result[len - 1 - j];
-        result[len - 1 - j] = temp;
+    result[index] = '\0';
+
+    // Reverse the string
+    int len = index;
+    for (int i = 0; i < len / 2; i++) {
+        char t = result[i];
+        result[i] = result[len - 1 - i];
+        result[len - 1 - i] = t;
     }
 }
 
+//------------------------------------------------------
+// Convert Any Base → Decimal (avoid pow() floating bug)
+//------------------------------------------------------
 long long base_to_decimal(const char *num_str, int base) {
-    long long decimal_num = 0;
+    long long decimal = 0;
+    long long multiplier = 1;
     int len = strlen(num_str);
-    int power = 0;
 
     for (int i = len - 1; i >= 0; i--) {
-        char digit = num_str[i];
-        int value;
+        char d = num_str[i];
+        int val;
 
-        if (digit >= '0' && digit <= '9') {
-            value = digit - '0';
-        } else if (digit >= 'A' && digit <= 'F') {
-            value = digit - 'A' + 10;
-        } else if (digit >= 'a' && digit <= 'f') {
-            value = digit - 'a' + 10;
-        } else {
-            return -1;
-        }
+        if (d >= '0' && d <= '9')
+            val = d - '0';
+        else if (d >= 'A' && d <= 'F')
+            val = d - 'A' + 10;
+        else
+            return -1; // invalid char
 
-        if (value >= base) {
-            return -2;
-        }
+        if (val >= base)
+            return -2; // digit cannot exist in that base
 
-        decimal_num += value * (long long)pow(base, power);
-        power++;
+        decimal += val * multiplier;
+        multiplier *= base;
     }
-    return decimal_num;
+
+    return decimal;
 }
 
+//------------------------------------------------------
+// Menu Display
+//------------------------------------------------------
 void display_menu() {
     printf("\n--- Number Conversion System Menu ---\n");
-    printf("1. Decimal (10) to Other Bases\n");
+    printf("1. Decimal (10) to Binary/Octal/Hex\n");
     printf("2. Binary (2) to Decimal\n");
     printf("3. Octal (8) to Decimal\n");
     printf("4. Hexadecimal (16) to Decimal\n");
@@ -76,51 +78,79 @@ void display_menu() {
     printf("-------------------------------------\n");
 }
 
+//------------------------------------------------------
+// Decimal → All Bases
+//------------------------------------------------------
 void decimal_to_all() {
     long long dec;
-    printf("Enter Decimal Number (Base 10): ");
+
+    printf("Enter Decimal Number: ");
     if (scanf("%lld", &dec) != 1 || dec < 0) {
-        printf("Invalid input. Please enter a positive integer.\n");
+        printf("Invalid input. Please enter a positive number.\n");
         while (getchar() != '\n');
         return;
     }
 
-    char binary_res[64];
-    char octal_res[64];
-    char hex_res[64];
+    char bin[64], oct[64], hex[64];
 
-    decimal_to_base(dec, 2, binary_res);
-    decimal_to_base(dec, 8, octal_res);
-    decimal_to_base(dec, 16, hex_res);
+    decimal_to_base(dec, 2, bin);
+    decimal_to_base(dec, 8, oct);
+    decimal_to_base(dec, 16, hex);
 
-    printf("\nConversion Results for %lld:\n", dec);
-    printf("---------------------------------\n");
-    printf("Binary (Base 2):       %s\n", binary_res);
-    printf("Octal (Base 8):        %s\n", octal_res);
-    printf("Hexadecimal (Base 16): %s\n", hex_res);
-    printf("---------------------------------\n");
+    printf("\nResults:\n");
+    printf("Binary      : %s\n", bin);
+    printf("Octal       : %s\n", oct);
+    printf("Hexadecimal : %s\n", hex);
 }
 
+//------------------------------------------------------
+// Any Base → Decimal
+//------------------------------------------------------
 void any_base_to_decimal(int base) {
-    char input_str[64];
+    char input[64];
     printf("Enter Number in Base %d: ", base);
-    scanf("%63s", input_str);
+    scanf("%63s", input);
 
-    for (int i = 0; input_str[i]; i++) {
-        if (input_str[i] >= 'a' && input_str[i] <= 'z') {
-            input_str[i] = input_str[i] - 32;
+    // Convert lowercase hex to uppercase
+    for (int i = 0; input[i]; i++)
+        if (input[i] >= 'a' && input[i] <= 'f')
+            input[i] -= 32;
+
+    long long result = base_to_decimal(input, base);
+
+    if (result == -1) {
+        printf("ERROR: Invalid character for base %d.\n", base);
+        return;
+    }
+    if (result == -2) {
+        printf("ERROR: Digit out of range for base %d.\n", base);
+        return;
+    }
+
+    printf("Decimal Value: %lld\n", result);
+}
+
+//------------------------------------------------------
+// MAIN PROGRAM
+//------------------------------------------------------
+int main() {
+    int choice;
+
+    while (1) {
+        display_menu();
+        printf("Enter choice: ");
+        scanf("%d", &choice);
+
+        switch (choice) {
+            case 1: decimal_to_all(); break;
+            case 2: any_base_to_decimal(2); break;
+            case 3: any_base_to_decimal(8); break;
+            case 4: any_base_to_decimal(16); break;
+            case 5: printf("Exiting...\n"); exit(0);
+            default: printf("Invalid choice. Try again.\n");
         }
     }
 
-    long long dec = base_to_decimal(input_str, base);
-
-    printf("---------------------------------\n");
-    if (dec == -1) {
-        printf("ERROR: Invalid character detected in the input for Base %d.\n", base);
-    } else if (dec == -2) {
-        printf("ERROR: Invalid digit detected (e.g., 8 or 9 in Binary/Octal).\n");
-    } else {
-        printf("Input (%s in Base %d) = Decimal (Base 10): %lld\n", input_str, base, dec);
-    }
-    printf("---------------------------------\n");
+    return 0;
 }
+
